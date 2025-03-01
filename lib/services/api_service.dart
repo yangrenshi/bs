@@ -2,7 +2,7 @@
  * @Author: yangrenshi yangrenshi@gmail.com
  * @Date: 2025-02-27 15:11:00
  * @LastEditors: yangrenshi yangrenshi@gmail.com
- * @LastEditTime: 2025-03-01 20:36:16
+ * @LastEditTime: 2025-03-01 23:42:42
  * @FilePath: \bs\lib\services\api_service.dart
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -25,8 +25,8 @@ class ApiService {
     ));
   }
 
-  Stream<String> getAnswer(String question,
-      {List<Map<String, dynamic>>? files}) async* {
+  Future<String> getAnswer(String question,
+      {List<Map<String, dynamic>>? files}) async {
     try {
       final response = await _dio.post(
         '/chat-messages',
@@ -43,39 +43,47 @@ class ApiService {
 
       final Stream<List<int>> stream = response.data.stream;
       final StringBuffer buffer = StringBuffer();
-      String previousText = '';
 
       await for (final data in stream) {
-        buffer.write(utf8.decode(data));
-        final String text = buffer.toString();
-        final lines = text.split('\n');
+        // 将字节数据解码为字符串
+        final decodedData = utf8.decode(data);
 
-        for (var i = 0; i < lines.length - 1; i++) {
-          final line = lines[i].trim();
-          if (line.startsWith('data:')) {
-            final jsonStr = line.substring(5).trim();
-            if (jsonStr.isNotEmpty) {
-              try {
-                final Map<String, dynamic> eventData = json.decode(jsonStr);
-                if (eventData['event'] == 'message') {
-                  final String answer = eventData['answer'] ?? '';
-                  if (answer.length > previousText.length) {
-                    yield answer.substring(previousText.length);
-                    previousText = answer;
-                  }
-                }
-              } catch (e) {
-                yield jsonStr;
+        // 移除 JSON 数据前的额外字符并分割数据流
+        List<String> jsonData = decodedData.split('data: ');
+
+        // 移除空字符串
+        jsonData = jsonData.where((element) => element.isNotEmpty).toList();
+
+        // 遍历每个数据块
+        for (var element in jsonData) {
+          // 判断是否结束
+          if (element.trim() == '[DONE]') {
+            return buffer.toString();
+          }
+
+          try {
+            // 解析 JSON 数据
+            final json = jsonDecode(element);
+
+            // 获取当前阶段的对话结果
+            if (json['event'] == 'message') {
+              final String answer = json['answer'] ?? '';
+              if (answer.isNotEmpty) {
+                // 将新内容添加到缓冲区
+                buffer.write(answer);
               }
+            }
+          } catch (e) {
+            // 如果JSON解析失败，直接添加原始数据到缓冲区
+            if (element.isNotEmpty) {
+              buffer.write(element);
             }
           }
         }
-
-        if (lines.length > 1) {
-          buffer.clear();
-          buffer.write(lines.last);
-        }
       }
+
+      // 如果没有收到[DONE]标记但流结束，返回累积的内容
+      return buffer.toString();
     } on DioException catch (e) {
       throw Exception('网络请求错误: ${e.message}');
     }

@@ -295,16 +295,15 @@ class _ChatPageState extends State<ChatPage> {
 
     try {
       final apiService = ApiService();
-      await for (final response in apiService.getAnswer(question)) {
-        if (!mounted) break;
+      final response = await apiService.getAnswer(question);
+      if (!mounted) return;
 
-        setState(() {
-          _messages.add({
-            'content': response,
-            'type': 'bot',
-          });
+      setState(() {
+        _messages.add({
+          'content': response,
+          'type': 'bot',
         });
-      }
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() {
