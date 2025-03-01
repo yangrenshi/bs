@@ -299,26 +299,10 @@ class _ChatPageState extends State<ChatPage> {
         if (!mounted) break;
 
         setState(() {
-          switch (response['type']) {
-            case 'thought':
-              // 可以选择是否显示AI的思考过程
-              break;
-            case 'message':
-              _messages.add({
-                'content': response['content'],
-                'type': 'bot',
-              });
-              break;
-            case 'file':
-              _messages.add({
-                'content': '文件：${response['file_name']}\n${response['content']}',
-                'type': 'bot',
-              });
-              break;
-            case 'end':
-              // 消息结束，可以在这里添加额外的处理
-              break;
-          }
+          _messages.add({
+            'content': response,
+            'type': 'bot',
+          });
         });
       }
     } catch (e) {
