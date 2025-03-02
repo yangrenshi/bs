@@ -9,16 +9,95 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 
-class ApiService {
+/// API配置常量
+class ApiConstants {
   static const String baseUrl = 'https://api.dify.ai/v1';
-  static const String apiKey = 'app-N0jm0M8x5i7vqAFPRu3XnPgx';
-  final Dio _dio;
+}
 
-  ApiService() : _dio = Dio() {
-    _dio.options.baseUrl = baseUrl;
+/// 智能体配置类
+class AgentConfig {
+  final String name;
+  final String baseUrl;
+  final String apiKey;
+  final String description;
+
+  const AgentConfig({
+    required this.name,
+    required this.baseUrl,
+    required this.apiKey,
+    required this.description,
+  });
+}
+
+/// 智能体配置管理
+class AgentConfigs {
+  static const teachingAssistant = AgentConfig(
+    name: '液压教学智能助手',
+    baseUrl: ApiConstants.baseUrl,
+    apiKey: 'app-N0jm0M8x5i7vqAFPRu3XnPgx',
+    description: '专业的液压知识问答系统，为您解答液压相关问题',
+  );
+
+  static const principleTeacher = AgentConfig(
+    name: '液压原理讲解',
+    baseUrl: ApiConstants.baseUrl,
+    apiKey: 'app-N0jm0M8x5i7vqAFPRu3XnPgx',
+    description: '深入浅出地讲解液压系统的基本原理和工作机制',
+  );
+
+  static const componentIdentifier = AgentConfig(
+    name: '液压元件识别',
+    baseUrl: ApiConstants.baseUrl,
+    apiKey: 'app-N0jm0M8x5i7vqAFPRu3XnPgx',
+    description: '帮助您快速识别和了解各种液压元件的功能与特点',
+  );
+
+  static const troubleshooter = AgentConfig(
+    name: '液压故障诊断',
+    baseUrl: ApiConstants.baseUrl,
+    apiKey: 'app-N0jm0M8x5i7vqAFPRu3XnPgx',
+    description: '智能分析液压系统故障，提供解决方案',
+  );
+
+  static const systemDesigner = AgentConfig(
+    name: '液压系统设计',
+    baseUrl: ApiConstants.baseUrl,
+    apiKey: 'app-N0jm0M8x5i7vqAFPRu3XnPgx',
+    description: '辅助设计液压系统，提供专业建议和优化方案',
+  );
+
+  static AgentConfig getConfigByName(String name) {
+    switch (name) {
+      case '液压教学智能助手':
+        return teachingAssistant;
+      case '液压原理讲解':
+        return principleTeacher;
+      case '液压元件识别':
+        return componentIdentifier;
+      case '液压故障诊断':
+        return troubleshooter;
+      case '液压系统设计':
+        return systemDesigner;
+      default:
+        throw Exception('未找到对应的智能体配置：$name');
+    }
+  }
+}
+
+class ApiService {
+  late final Dio _dio;
+  late final AgentConfig _currentConfig;
+
+  ApiService({String? agentName}) {
+    _currentConfig = agentName != null
+        ? AgentConfigs.getConfigByName(agentName)
+        : AgentConfigs.teachingAssistant;
+
+    _dio = Dio();
+    _dio.options.baseUrl = _currentConfig.baseUrl;
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) {
-        options.headers['Authorization'] = 'Bearer $apiKey';
+        options.headers['Authorization'] = 'Bearer ${_currentConfig.apiKey}';
         options.headers['Content-Type'] = 'application/json';
         return handler.next(options);
       },
@@ -89,23 +168,6 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> getKnowledgePoint(String topic) async {
-    try {
-      final response = await _dio.post(
-        '/messages',
-        data: {
-          'inputs': {'topic': topic},
-          'query': '请详细讲解液压相关的知识点：$topic',
-          'response_mode': 'blocking',
-          'user': 'user',
-          'files': []
-        },
-      );
-      return response.data;
-    } on DioException catch (e) {
-      throw Exception('网络请求错误: ${e.message}');
-    }
-  }
 
   Future<bool> checkConnectivity() async {
     try {
